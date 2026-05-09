@@ -11,7 +11,9 @@ type Screen =
   | "admin-gate"
   | "admin-dashboard"
   | "student-portal"
-  | "lesson-viewer";
+  | "lesson-viewer"
+  | "teacher-portal"
+  | "teacher-lesson-viewer";
 
 type ChatView = "landing" | "dashboard" | "contacts" | "room";
 
@@ -99,8 +101,13 @@ export default function App() {
   const [selectedStudentClass, setSelectedStudentClass] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Lesson viewer
+  // Teacher portal
+  const [selectedTeacherClass, setSelectedTeacherClass] = useState<string | null>(null);
+  const [teacherSearchQuery, setTeacherSearchQuery] = useState("");
+
+  // Lesson viewer (shared: student & teacher)
   const [viewLesson, setViewLesson] = useState<Lesson | null>(null);
+  const [lessonReturnScreen, setLessonReturnScreen] = useState<Screen>("student-portal");
 
   // Admin gate
   const [adminUser, setAdminUser] = useState("");
@@ -148,6 +155,10 @@ export default function App() {
     if (s === "student-portal") {
       setSelectedStudentClass(null);
       setSearchQuery("");
+    }
+    if (s === "teacher-portal") {
+      setSelectedTeacherClass(null);
+      setTeacherSearchQuery("");
     }
     if (s === "admin-dashboard") {
       setAdminView("main");
@@ -257,7 +268,23 @@ export default function App() {
     const lesson = db.find(i => i.id === id);
     if (!lesson) return;
     setViewLesson(lesson);
+    setLessonReturnScreen("student-portal");
     goTo("lesson-viewer");
+  }
+
+  // --- TEACHER PORTAL ---
+  const filteredTeacherLessons = db.filter(
+    i =>
+      i.title.toLowerCase().includes(teacherSearchQuery.toLowerCase()) ||
+      i.class.toLowerCase().includes(teacherSearchQuery.toLowerCase())
+  );
+
+  function openTeacherLesson(id: number) {
+    const lesson = db.find(i => i.id === id);
+    if (!lesson) return;
+    setViewLesson(lesson);
+    setLessonReturnScreen("teacher-portal");
+    goTo("teacher-lesson-viewer");
   }
 
   const classOptions = (type: string) =>
@@ -522,6 +549,9 @@ export default function App() {
             <div className="portal-white-card" onClick={() => goTo("student-portal")}>
               Student Portal
             </div>
+            <div className="portal-white-card" onClick={() => goTo("teacher-portal")}>
+              Teachers Portal
+            </div>
           </div>
           <button className="btn-grey" onClick={() => goTo("user-dashboard")}>
             Back to Home
@@ -715,7 +745,7 @@ export default function App() {
     );
   }
 
-  if (screen === "lesson-viewer" && viewLesson) {
+  if ((screen === "lesson-viewer" || screen === "teacher-lesson-viewer") && viewLesson) {
     return (
       <>
         <div className="screen">
@@ -730,11 +760,84 @@ export default function App() {
             <button
               className="btn-blue"
               style={{ marginTop: 20 }}
-              onClick={() => goTo("student-portal")}
+              onClick={() => goTo(lessonReturnScreen)}
             >
               Back to Portal
             </button>
           </div>
+        </div>
+        <ToastContainer toasts={toasts} onRemove={removeToast} />
+      </>
+    );
+  }
+
+  if (screen === "teacher-portal") {
+    const classes = [...new Set(db.map(i => i.class))];
+    const showingSearch = teacherSearchQuery.trim() !== "";
+    const listToShow = selectedTeacherClass
+      ? filteredTeacherLessons.filter(i => i.class === selectedTeacherClass)
+      : filteredTeacherLessons;
+
+    return (
+      <>
+        <div className="screen">
+          <h2 className="screen-title">Teachers Learning Portal</h2>
+          <input
+            type="search"
+            placeholder="Search by topic or class..."
+            value={teacherSearchQuery}
+            onChange={e => {
+              setTeacherSearchQuery(e.target.value);
+              setSelectedTeacherClass(null);
+            }}
+          />
+
+          {!showingSearch && !selectedTeacherClass && (
+            <div className="category-grid">
+              {classes.length === 0 && (
+                <p style={{ color: "var(--grey)", gridColumn: "1/-1" }}>
+                  No lessons uploaded yet.
+                </p>
+              )}
+              {classes.map(c => (
+                <div key={c} className="category-card" onClick={() => setSelectedTeacherClass(c)}>
+                  <span>{c}</span>
+                  <span className="sub">{db.filter(i => i.class === c).length} Lessons</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {(showingSearch || selectedTeacherClass) && (
+            <div>
+              {selectedTeacherClass && !showingSearch && (
+                <button
+                  className="btn-grey"
+                  style={{ marginBottom: 12 }}
+                  onClick={() => setSelectedTeacherClass(null)}
+                >
+                  ← All Classes
+                </button>
+              )}
+              {listToShow.length === 0 && (
+                <p style={{ color: "var(--grey)", textAlign: "center", marginTop: 20 }}>
+                  No lessons found.
+                </p>
+              )}
+              {listToShow.map(i => (
+                <div key={i.id} className="lesson-card">
+                  <strong>{i.class} — Term {i.term}</strong>
+                  <span>{i.title}</span>
+                  <br />
+                  <button className="btn-read" onClick={() => openTeacherLesson(i.id)}>Read</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <button className="btn-grey gap-v" onClick={() => goTo("portal-selection")}>
+            Exit Portal
+          </button>
         </div>
         <ToastContainer toasts={toasts} onRemove={removeToast} />
       </>
