@@ -7,7 +7,7 @@ type Screen =
   | "student-portal" | "lesson-viewer" | "teacher-portal" | "teacher-lesson-viewer";
 
 type ChatView = "landing" | "dashboard" | "contacts" | "room" | "group-room";
-type ChatModal = null | "profile-pic" | "edit-profile" | "create-group" | "edit-group";
+type ChatModal = null | "view-profile" | "profile-pic" | "edit-profile" | "create-group" | "edit-group";
 
 interface Lesson { id: number; section: string; class: string; term: number; title: string; fileName: string; }
 interface AppContact { id: number; name: string; img: string; }
@@ -291,6 +291,56 @@ export default function App() {
     return (
       <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) closeChatModal(); }}>
         <div className="modal-box">
+
+          {/* VIEW PROFILE MODAL */}
+          {chatModal === "view-profile" && (
+            <>
+              <div className="modal-header">
+                <h3>My Profile</h3>
+                <button className="modal-close" onClick={closeChatModal}>×</button>
+              </div>
+
+              {/* Avatar */}
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 24 }}>
+                <div className="profile-pic-preview"
+                  style={chatProfile.img
+                    ? { backgroundImage: `url(${chatProfile.img})` }
+                    : { backgroundColor: "var(--wa-teal)" }}>
+                  {!chatProfile.img && (chatProfile.name?.[0]?.toUpperCase() || "?")}
+                </div>
+                <h2 style={{ marginTop: 10, fontSize: 22, color: "var(--card-text)", textAlign: "center" }}>
+                  {chatProfile.name || <span style={{ color: "var(--grey)", fontStyle: "italic" }}>No name set</span>}
+                </h2>
+              </div>
+
+              {/* Details */}
+              <div className="view-profile-fields">
+                <div className="view-profile-row">
+                  <span className="view-profile-label">Bio</span>
+                  <span className="view-profile-value">
+                    {chatProfile.bio || <span style={{ color: "var(--grey)", fontStyle: "italic" }}>No bio yet</span>}
+                  </span>
+                </div>
+                <div className="view-profile-row">
+                  <span className="view-profile-label">Phone</span>
+                  <span className="view-profile-value">
+                    {chatProfile.phone || <span style={{ color: "var(--grey)", fontStyle: "italic" }}>Not set</span>}
+                  </span>
+                </div>
+                <div className="view-profile-row">
+                  <span className="view-profile-label">Email</span>
+                  <span className="view-profile-value">
+                    {chatProfile.email || <span style={{ color: "var(--grey)", fontStyle: "italic" }}>Not set</span>}
+                  </span>
+                </div>
+              </div>
+
+              <button className="btn-blue gap-v" style={{ marginTop: 24 }} onClick={() => openChatModal("edit-profile")}>
+                ✏️ Edit Profile
+              </button>
+              <button className="btn-white gap-v" onClick={closeChatModal}>Close</button>
+            </>
+          )}
 
           {/* PROFILE PICTURE MODAL */}
           {chatModal === "profile-pic" && (
@@ -595,6 +645,9 @@ export default function App() {
                 </div>
                 {chatMenuOpen && (
                   <div className="chat-dropdown">
+                    <div className="chat-dropdown-item" onClick={() => openChatModal("view-profile")}>
+                      <span className="dropdown-icon">👤</span> View Profile
+                    </div>
                     <div className="chat-dropdown-item" onClick={() => openChatModal("profile-pic")}>
                       <span className="dropdown-icon">📷</span> Profile Picture
                     </div>
