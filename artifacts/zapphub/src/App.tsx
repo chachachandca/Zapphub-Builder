@@ -18,6 +18,18 @@ interface Group { id: number; name: string; description: string; img: string; me
 const ADMIN_CREDS = { user: "Samuel Chibuike Azubuike", pass: "Lordmayor" };
 const MAX_GROUP_MEMBERS = 1000;
 
+const PALETTE_COLORS = [
+  { name: "Emerald",  value: "#25d366" },
+  { name: "Teal",    value: "#008069" },
+  { name: "Blue",    value: "#3b82f6" },
+  { name: "Indigo",  value: "#4f46e5" },
+  { name: "Purple",  value: "#8b5cf6" },
+  { name: "Pink",    value: "#ec4899" },
+  { name: "Orange",  value: "#f97316" },
+  { name: "Red",     value: "#ef4444" },
+  { name: "Slate",   value: "#475569" },
+];
+
 const APP_CONTACTS: AppContact[] = [
   { id: 1, name: "Sarah", img: "https://i.pravatar.cc/150?u=1" },
   { id: 2, name: "John Doe", img: "https://i.pravatar.cc/150?u=2" },
@@ -60,6 +72,9 @@ export default function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [groupMessages, setGroupMessages] = useState<Record<number, Message[]>>({});
   const [chatInput, setChatInput] = useState("");
+  const [chatBubbleColor, setChatBubbleColor] = useState<string>(
+    () => localStorage.getItem("zapphub_bubble_color") || "#25d366"
+  );
 
   // Chat profile (auto-filled from registration)
   const [chatProfile, setChatProfile] = useState<ChatProfile>(() => {
@@ -664,6 +679,23 @@ export default function App() {
                 )}
               </div>
             </header>
+            {/* COLOUR PALETTE STRIP — top-left of dashboard */}
+            <div className="palette-strip">
+              <span className="palette-strip-label">Colour</span>
+              {PALETTE_COLORS.map(c => (
+                <div
+                  key={c.value}
+                  className={`palette-swatch${chatBubbleColor === c.value ? " selected" : ""}`}
+                  style={{ backgroundColor: c.value }}
+                  title={c.name}
+                  onClick={() => {
+                    setChatBubbleColor(c.value);
+                    localStorage.setItem("zapphub_bubble_color", c.value);
+                  }}
+                />
+              ))}
+            </div>
+
             <div className="list-container">
               {allChatsAndGroups.length === 0 && groups.length === 0 ? (
                 <p className="empty-msg">No chats yet. Tap New ➔ to start!</p>
@@ -719,7 +751,12 @@ export default function App() {
               </div>
             </header>
             <div className="message-container">
-              {messages.map((m, i) => <div key={i} className={`bubble ${m.sent ? "sent" : "received"}`}>{m.text}</div>)}
+              {messages.map((m, i) => (
+                <div key={i} className={`bubble ${m.sent ? "sent" : "received"}`}
+                  style={m.sent ? { backgroundColor: chatBubbleColor } : {}}>
+                  {m.text}
+                </div>
+              ))}
               <div ref={messagesEndRef} />
             </div>
             <div className="input-panel">
@@ -745,7 +782,12 @@ export default function App() {
               </div>
             </header>
             <div className="message-container">
-              {currentGroupMsgs.map((m, i) => <div key={i} className={`bubble ${m.sent ? "sent" : "received"}`}>{m.text}</div>)}
+              {currentGroupMsgs.map((m, i) => (
+                <div key={i} className={`bubble ${m.sent ? "sent" : "received"}`}
+                  style={m.sent ? { backgroundColor: chatBubbleColor } : {}}>
+                  {m.text}
+                </div>
+              ))}
               {currentGroupMsgs.length === 0 && <p className="empty-msg" style={{ color: "#888" }}>No messages yet</p>}
               <div ref={messagesEndRef} />
             </div>
