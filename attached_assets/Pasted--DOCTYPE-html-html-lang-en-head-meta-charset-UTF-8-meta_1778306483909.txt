@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zapphub</title>
+    <style>
+        :root {
+          /* Existing & Light Theme Variables */
+          --blue: #3498db;
+          --green: #27ae60;
+          --grey: #9ca3af;
+          --navy: #2d3e50;
+          --bg: #f8fafc;
+
+          /* Abstracted Theme Roles */
+          --page-bg: var(--bg);
+          --main-text: var(--navy);
+          --card-bg: white;
+          --card-text: black;
+          --btn-grey: var(--grey);
+          --reading-pane-border: #eee;
+          --input-border: #ddd;
+          --chat-btn-bg: white;
+          --portal-grid-gap: 15px;
+          --btn-nav-bg: #e2e8f0;
+          --term-content-bg: #fafafa;
+
+          /* Chat App Specific Variables */
+          --wa-teal: #008069;
+          --wa-bg: #efeae2;
+          --wa-white: #ffffff;
+          --wa-green-light: #dcf8c6;
+          --wa-gray: #f0f2f5;
+          --toast-bg: #323232;
+        }
+
+        /* Dark Theme Variable Overrides */
+        [data-theme='dark'] {
+          --page-bg: #1a1d21;
+          --main-text: var(--bg);
+          --card-bg: #2d3e50; 
+          --card-text: white;
+          --btn-grey: #475569;
+          --reading-pane-border: #334155;
+          --input-border: #4b5563;
+          --chat-btn-bg: #334155;
+          --btn-nav-bg: #334155;
+          --term-content-bg: #1f2937;
+        }
+
+        body { 
+          font-family: sans-serif; 
+          background: var(--page-bg); 
+          color: var(--main-text);
+          margin: 0; 
+          display: flex; 
+          justify-content: center; 
+          transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        .screen { 
+          width: 100%; 
+          max-width: 500px; 
+          min-height: 100vh; 
+          padding: 20px; 
+          box-sizing: border-box; 
+        }
+
+        .hidden { 
+          display: none !important; 
+        }
+
+        .container { 
+          background: var(--card-bg); 
+          color: var(--card-text);
+          padding: 30px; 
+          border-radius: 15px; 
+          box-shadow: 0 4px 20px rgba(0,0,0,0.05); 
+          text-align: center; 
+          margin-top: 40px; 
+        }
+
+        .dashboard-header { 
+          display: flex; 
+          align-items: center; 
+          gap: 10px; 
+          margin-bottom: 30px; 
+          border-bottom: 1px solid var(--reading-pane-border); 
+          padding-bottom: 10px; 
+          justify-content: space-between; 
+        }
+
+        .dashboard-header .profile-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .profile-circle { 
+          width: 45px; 
+          height: 45px; 
+          background: #ccc; 
+          border-radius: 50%; 
+          background-size: cover;
+          background-position: center;
+          cursor: pointer;
+          border: 1px solid var(--reading-pane-border);
+        }
+
+        .theme-toggle-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--grey);
+            font-size: 12px;
+        }
+
+        .switch {
+          position: relative;
+          display: inline-block;
+          width: 48px;
+          height: 26px;
+        }
+
+        .switch input { 
+          opacity: 0;
+          width: 0;
+          height: 0;
+        }
+
+        .slider {
+          position: absolute;
+          cursor: pointer;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background-color: #e2e8f0;
+          transition: .3s;
+        }
+
+        [data-theme='dark'] .slider {
+            background-color: var(--grey);
+        }
+
+        .slider:before {
+          position: absolute;
+          content: "";
+          height: 20px;
+          width: 20px;
+          left: 3px;
+          bottom: 3px;
+          background-color: white;
+          transition: .3s;
+        }
+
+        input:checked + .slider {
+          background-color: var(--blue);
+        }
+
+        input:focus + .slider {
+          box-shadow: 0 0 1px var(--blue);
+        }
+
+        input:checked + .slider:before {
+          transform: translateX(22px);
+        }
+
+        .slider.round {
+          border-radius: 34px;
+        }
+
+        .slider.round:before {
+          border-radius: 50%;
+        }
+
+        .learn-now-card, .chat-gateway-card { 
+          background: var(--navy);
+          color: white; 
+          padding: 50px 20px; 
+          border-radius: 15px; 
+          text-align: center; 
+          margin-top: 20px; 
+          cursor: pointer; 
+        }
+
+        .chat-gateway-card {
+            background: var(--wa-teal);
+            margin-bottom: 10px;
+        }
+
+        .chat-btn { 
+          background: var(--chat-btn-bg); 
+          color: var(--card-text);
+          padding: 15px; 
+          border-radius: 10px; 
+          margin-bottom: 10px; 
+          text-align: center; 
+          box-shadow: 0 2px 5px rgba(0,0,0,0.05); 
+          cursor: pointer; 
+        }
+
+        .admin-nav-bar { 
+          display: flex; 
+          gap: 10px; 
+          margin-bottom: 20px; 
+        }
+
+        .btn-nav { 
+          background: var(--btn-nav-bg); 
+          color: #475569; 
+          flex: 1; 
+          padding: 10px; 
+          font-size: 14px; 
+        }
+
+        [data-theme='dark'] .btn-nav {
+            color: white;
+        }
+
+        .portal-grid { 
+          display: flex; 
+          gap: var(--portal-grid-gap); 
+          margin: 20px 0; 
+        }
+
+        .portal-white-card { 
+          flex: 1; 
+          background: var(--card-bg); 
+          color: var(--card-text);
+          padding: 25px 10px; 
+          border-radius: 12px; 
+          text-align: center; 
+          font-weight: bold; 
+          box-shadow: 0 4px 10px rgba(0,0,0,0.05); 
+          cursor: pointer; 
+        }
+
+        button { 
+          width: 100%; 
+          padding: 14px; 
+          border-radius: 8px; 
+          border: none; 
+          font-weight: bold; 
+          cursor: pointer; 
+          transition: 0.2s; 
+          font-size: 16px; 
+        }
+
+        .btn-blue { background: var(--blue); color: white; }
+        .btn-green { background: var(--green); color: white; }
+        .btn-grey { background: var(--btn-grey); color: white; }
+        .btn-white { background: var(--card-bg); color: var(--card-text); box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 10px; }
+
+        #class-buttons-grid button { background: var(--blue); color: white; margin-bottom: 10px; }
+
+        .main-portal-btns { display: flex; flex-direction: column; gap: 5px; margin-bottom: 20px; }
+
+        .term-container { background: var(--card-bg); border-radius: 8px; margin: 10px 0; border: 1px solid var(--reading-pane-border); }
+
+        .term-header { padding: 15px; font-weight: bold; cursor: pointer; display: flex; justify-content: space-between; color: var(--card-text); }
+
+        .term-content { padding: 15px; border-top: 1px solid var(--reading-pane-border); background: var(--term-content-bg); }
+
+        #student-search { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--input-border); margin-bottom: 20px; font-size: 16px; background: var(--card-bg); color: var(--card-text); }
+
+        input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid var(--input-border); border-radius: 8px; box-sizing: border-box; background: var(--card-bg); color: var(--card-text); }
+        [data-theme='dark'] input::placeholder { color: #94a3b8; }
+
+        .category-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+          gap: 15px;
+          margin-bottom: 20px;
+        }
+
+        .category-card {
+          background: var(--card-bg);
+          color: var(--card-text);
+          padding: 20px 10px;
+          border-radius: 12px;
+          text-align: center;
+          font-weight: bold;
+          box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+          cursor: pointer;
+          border: 2px solid transparent;
+          transition: all 0.3s ease;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          min-height: 100px;
+        }
+
+        #toast-container {
+          position: fixed;
+          bottom: 20px;
+          left: 20px;
+          z-index: 9999;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          pointer-events: none;
+        }
+
+        .toast {
+          background: var(--navy);
+          color: white;
+          padding: 12px 20px;
+          border-radius: 8px;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+          font-size: 14px;
+          min-width: 200px;
+          animation: slideIn 0.3s ease-out;
+          pointer-events: auto;
+          transition: opacity 0.5s ease;
+        }
+
+        @keyframes slideIn {
+          from { transform: translateX(-100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+
+        .reading-pane {
+          background: var(--card-bg);
+          color: var(--card-text);
+          padding: 20px;
+          border-radius: 15px;
+          margin-top: 20px;
+          border: 1px solid var(--reading-pane-border);
+          text-align: left;
+        }
+
+        .btn-read {
+          background: var(--green);
+          color: white;
+          margin-top: 10px;
+          padding: 8px;
+          font-size: 14px;
+          width: auto;
+        }
+
+        /* --- CHAT APP SPECIFIC STYLES --- */
+        #chat-app-internal { height: 100vh; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+        .view-chat-app { display: none; height: 100%; flex-direction: column; background: var(--wa-bg); color: black; }
+        .view-chat-app.active { display: flex; }
+        .app-header-chat { background: var(--wa-teal); color: white; padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; min-height: 60px; }
+        .message-container-chat { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; background-color: #e5ddd5; }
+        .bubble { max-width: 85%; padding: 8px 12px; border-radius: 8px; font-size: 14px; position: relative; box-shadow: 0 1px 1px rgba(0,0,0,0.1); }
+        .sent { align-self: flex-end; background: var(--wa-green-light); border-top-right-radius: 0; }
+        .received { align-self: flex-start; background: white; border-top-left-radius: 0; }
+        .input-panel-chat { padding: 10px; background: #f0f0f0; display: flex; gap: 10px; align-items: center; }
+        .avatar-sm { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
+        .item-row { display: flex; align-items: center; padding: 12px 15px; border-bottom: 1px solid #f2f2f2; cursor: pointer; background: white; text-align: left; }
+        .list-container { flex: 1; overflow-y: auto; background: white; }
+    </style>
+</head>
+<body>
+
+<div id="app">
+  <section id="onboarding" class="screen">
+    <div class="container">
+      <h1>Zapphub</h1>
+      <p>Educational resources for secondary school students.</p>
+      <button class="btn-blue" onclick="showScreen('registration')">Click to Get Started</button>
+    </div>
+  </section>
+
+  <section id="registration" class="screen hidden">
+    <div class="container">
+      <h2>Create Account</h2>
+      <input type="text" id="reg-name" placeholder="Full Name">
+      <input type="email" id="reg-email" placeholder="Email">
+      <input type="password" id="reg-pass" placeholder="Password">
+      <button class="btn-blue" onclick="showScreen('login')">Register</button>
+      <p onclick="showScreen('login')" style="cursor:pointer; color: #3498db; margin-top: 15px;">Already have an account? Login</p>
+    </div>
+  </section>
+
+  <section id="login" class="screen hidden">
+    <div class="container">
+      <h2>Login to Zapphub</h2>
+      <input type="text" id="login-email" placeholder="Email or Username">
+      <input type="password" id="login-pass" placeholder="Password">
+      <button class="btn-blue" onclick="handleLogin()">Login</button>
+    </div>
+  </section>
+
+  <section id="user-dashboard" class="screen hidden">
+    <div class="dashboard-header">
+        <div class="profile-group">
+          <div class="profile-circle" onclick="triggerUpload()"></div>
+          <input type="file" id="profile-upload" hidden accept="image/*" onchange="handleProfilePic(this)">
+          <span id="display-email">chachachandca@gmail.com</span>
+        </div>
+        <div class="theme-toggle-container">
+            Dark Mode
+            <label class="switch">
+                <input type="checkbox" id="dark-mode-toggle" onchange="toggleTheme()">
+                <span class="slider round"></span>
+            </label>
+        </div>
+    </div>
+    
+    <div class="chat-gateway-card" onclick="showScreen('chat-app-screen')">
+      <h2>Zapphub Chat</h2>
+    </div>
+    
+    <div class="learn-now-card" onclick="showScreen('portal-selection')">
+      <h2>Learn Now</h2>
+    </div>
+  </section>
+
+  <section id="chat-app-screen" class="screen hidden" style="padding:0;">
+    <div id="chat-app-internal">
+        
+        <div id="view-chat-landing" class="view-chat-app active">
+            <div class="container" style="margin-top: 100px;">
+                <h1 style="color: var(--wa-teal)">zapphub chat</h1>
+                <p>Connect with friends and family instantly.</p>
+                <button class="btn-blue" style="background: var(--wa-teal)" onclick="showChatView('view-chat-dashboard')">Join Chat</button>
+                <button class="btn-grey" onclick="showScreen('user-dashboard')" style="margin-top:10px;">Back to Zapphub</button>
+            </div>
+        </div>
+
+        <div id="view-chat-dashboard" class="view-chat-app">
+            <header class="app-header-chat">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <button style="width:auto; background:none; color:white; font-size:20px;" onclick="showChatView('view-chat-landing')">←</button>
+                    <h2 style="margin:0;">Chats</h2>
+                </div>
+                <button style="width:auto; background:none; color:white;" onclick="showChatView('view-chat-contacts')">➔</button>
+            </header>
+            <div id="chat-list" class="list-container">
+                <p style="text-align:center; color:#888; margin-top:50px;">No active chats. Start one!</p>
+            </div>
+        </div>
+
+        <div id="view-chat-contacts" class="view-chat-app">
+            <header class="app-header-chat">
+                <button style="width:auto; background:none; color:white;" onclick="showChatView('view-chat-dashboard')">← Back</button>
+                <h2 style="margin:0;">Contacts</h2>
+                <div></div>
+            </header>
+            <div id="contacts-list" class="list-container"></div>
+        </div>
+
+        <div id="view-chat-room" class="view-chat-app">
+            <header class="app-header-chat">
+                <button style="width:auto; background:none; color:white;" onclick="showChatView('view-chat-dashboard')">←</button>
+                <div style="display:flex; align-items:center; gap:10px; flex:1; margin-left:10px;">
+                    <img id="active-chat-img" src="" class="avatar-sm">
+                    <span id="active-chat-name"></span>
+                </div>
+            </header>
+            <div id="chat-messages" class="message-container-chat"></div>
+            <div class="input-panel-chat">
+                <input type="text" id="chat-msg-input" placeholder="Type a message" style="margin:0; border-radius:20px;">
+                <button onclick="sendChatMessage()" style="width:45px; height:45px; border-radius:50%; background:var(--wa-teal); color:white;">➤</button>
+            </div>
+        </div>
+    </div>
+  </section>
+
+  <section id="portal-selection" class="screen hidden">
+    <div class="portal-grid">
+      <div class="portal-white-card" onclick="openAdminGate()">Admin Portal</div>
+      <div class="portal-white-card" onclick="showScreen('student-portal')">Student Portal</div>
+    </div>
+    <button class="btn-grey" onclick="showScreen('user-dashboard')">Back to Home</button>
+  </section>
+
+  <section id="admin-gate" class="screen hidden">
+    <div class="container">
+      <h3>Admin Verification</h3>
+      <input type="text" id="admin-user" placeholder="Enter Admin Username">
+      <input type="password" id="admin-pass" placeholder=".........">
+      <button class="btn-blue" onclick="verifyAdmin()">Unlock Portal</button>
+      <button class="btn-grey" onclick="showScreen('portal-selection')" style="margin-top:10px;">Cancel</button>
+    </div>
+  </section>
+
+  <section id="admin-dashboard" class="screen hidden">
+    <h2>Admin Management</h2>
+    <div class="admin-nav-bar">
+      <button class="btn-nav" onclick="adminBackward()">← Backward</button>
+      <button class="btn-nav" onclick="adminForward()">Forward →</button>
+    </div>
+    <div class="main-portal-btns">
+      <button class="btn-white" onclick="showSection('Primary')">Primary </button>
+      <button class="btn-white" onclick="showSection('JSS')">Junior Secondary</button>
+      <button class="btn-white" onclick="showSection('SSS')">Senior Secondary</button>
+    </div>
+    <div id="class-selector" class="hidden">
+      <h3 id="current-section-title">JSS SECTIONS</h3>
+      <div id="class-buttons-grid"></div>
+      <button onclick="resetToMain()" class="btn-grey">Back to Categories</button>
+    </div>
+    <div id="term-module" class="hidden">
+      <h3 id="current-class-title"></h3>
+      <div class="term-container" id="term-1">
+        <div class="term-header" onclick="toggleTerm(1)">First Term <span>▼</span></div>
+        <div class="term-content hidden" id="content-1">
+           <input type="text" id="title-1" placeholder="Topic Title">
+           <input type="file" id="file-1">
+           <button class="btn-green" onclick="uploadLesson(1)">Upload Now</button>
+           <div class="upload-list" id="list-1"></div>
+        </div>
+      </div>
+      <div class="term-container" id="term-2">
+        <div class="term-header" onclick="toggleTerm(2)">Second Term <span>▼</span></div>
+        <div class="term-content hidden" id="content-2">
+           <input type="text" id="title-2" placeholder="Topic Title">
+           <input type="file" id="file-2">
+           <button class="btn-green" onclick="uploadLesson(2)">Upload Now</button>
+           <div class="upload-list" id="list-2"></div>
+        </div>
+      </div>
+      <div class="term-container" id="term-3">
+        <div class="term-header" onclick="toggleTerm(3)">Third Term <span>▼</span></div>
+        <div class="term-content hidden" id="content-3">
+           <input type="text" id="title-3" placeholder="Topic Title">
+           <input type="file" id="file-3">
+           <button class="btn-green" onclick="uploadLesson(3)">Upload Now</button>
+           <div class="upload-list" id="list-3"></div>
+        </div>
+      </div>
+      <button onclick="backToClasses()" class="btn-grey">Back to Classes</button>
+    </div>
+  </section>
+
+  <section id="student-portal" class="screen hidden">
+    <h2>Student Learning Portal</h2>
+    <input type="text" id="student-search" placeholder="Search by topic or class..." onkeyup="filterStudentLessons()">
+    <div id="student-display"></div>
+    <button class="btn-grey" onclick="showScreen('portal-selection')">Exit Portal</button>
+  </section>
+
+  <section id="lesson-viewer" class="screen hidden">
+    <div class="container">
+      <h2 id="view-title">Lesson Title</h2>
+      <p id="view-meta" style="color: var(--grey); font-size: 14px;"></p>
+      <div class="reading-pane">
+        <p><strong>File:</strong> <span id="view-filename"></span></p>
+        <hr style="border: 0; border-top: 1px solid var(--reading-pane-border); margin: 15px 0;">
+        <p>Educational content appears here.</p>
+      </div>
+      <button class="btn-blue" onclick="showScreen('student-portal')" style="margin-top: 20px;">Back to Portal</button>
+    </div>
+  </section>
+
+  <div id="toast-container"></div>
+</div>
+
+<script>
+// --- CORE DATA & NAVIGATION ---
+let db = JSON.parse(localStorage.getItem('zapphub_db')) || [];
+let activeSection = ""; 
+let activeClass = "";    
+let selectedStudentClass = null; 
+
+const adminCreds = { user: "Samuel Chibuike Azubuike", pass: "Lordmayor" };
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+  if(id === 'student-portal') {
+      selectedStudentClass = null; 
+      renderStudentPortal();
+  }
+}
+
+// --- CHAT APP LOGIC ---
+let chatState = {
+    contacts: [
+        { id: 1, name: "Sarah", img: "https://i.pravatar.cc/150?u=1" },
+        { id: 2, name: "John Doe", img: "https://i.pravatar.cc/150?u=2" },
+        { id: 3, name: "Toolifylab Team", img: "https://i.pravatar.cc/150?u=3" }
+    ],
+    activeChats: []
+};
+
+function showChatView(viewId) {
+    document.querySelectorAll('.view-chat-app').forEach(v => v.classList.remove('active'));
+    document.getElementById(viewId).classList.add('active');
+    if(viewId === 'view-chat-contacts') renderContacts();
+    if(viewId === 'view-chat-dashboard') renderChatDashboard();
+}
+
+function renderContacts() {
+    const list = document.getElementById('contacts-list');
+    list.innerHTML = '';
+    chatState.contacts.forEach(c => {
+        const row = document.createElement('div');
+        row.className = 'item-row';
+        row.innerHTML = `<img src="${c.img}" class="avatar-sm"><div style="margin-left:15px"><h4>${c.name}</h4></div>`;
+        row.onclick = () => startChat(c);
+        list.appendChild(row);
+    });
+}
+
+function startChat(contact) {
+    if(!chatState.activeChats.find(c => c.id === contact.id)) chatState.activeChats.push(contact);
+    document.getElementById('active-chat-name').innerText = contact.name;
+    document.getElementById('active-chat-img').src = contact.img;
+    document.getElementById('chat-messages').innerHTML = '';
+    showChatView('view-chat-room');
+}
+
+function sendChatMessage() {
+    const input = document.getElementById('chat-msg-input');
+    if(!input.value.trim()) return;
+    const msg = document.createElement('div');
+    msg.className = 'bubble sent';
+    msg.innerText = input.value;
+    document.getElementById('chat-messages').appendChild(msg);
+    input.value = '';
+}
+
+function renderChatDashboard() {
+    const list = document.getElementById('chat-list');
+    list.innerHTML = '';
+    if(chatState.activeChats.length === 0) {
+        list.innerHTML = '<p style="text-align:center; color:#888; margin-top:50px;">No active chats.</p>';
+        return;
+    }
+    chatState.activeChats.forEach(c => {
+        const row = document.createElement('div');
+        row.className = 'item-row';
+        row.innerHTML = `<img src="${c.img}" class="avatar-sm"><div style="margin-left:15px"><h4>${c.name}</h4><p style="font-size:12px; color:#666;">Tap to chat</p></div>`;
+        row.onclick = () => startChat(c);
+        list.appendChild(row);
+    });
+}
+
+// --- ORIGINAL PORTAL & ADMIN LOGIC ---
+function triggerUpload() { document.getElementById('profile-upload').click(); }
+function handleProfilePic(input) {
+  if (input.files && input.files[0]) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      document.querySelector('.profile-circle').style.backgroundImage = `url(${e.target.result})`;
+      localStorage.setItem('zapphub_user_image', e.target.result);
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+}
+
+function toggleTheme() {
+    const theme = document.getElementById('dark-mode-toggle').checked ? 'dark' : 'light';
+    document.body.setAttribute('data-theme', theme);
+    localStorage.setItem('zapphub_theme', theme);
+}
+
+function showToast(m) {
+  const t = document.createElement('div');
+  t.className = 'toast'; t.innerText = m;
+  document.getElementById('toast-container').appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 500); }, 3000);
+}
+
+function handleLogin() {
+  const email = document.getElementById('login-email').value;
+  if(email) document.getElementById('display-email').innerText = email;
+  showScreen('user-dashboard');
+}
+
+function openAdminGate() { showScreen('admin-gate'); }
+function verifyAdmin() {
+  const u = document.getElementById('admin-user').value;
+  const p = document.getElementById('admin-pass').value;
+  if (u === adminCreds.user && p === adminCreds.pass) showScreen('admin-dashboard');
+  else showToast("Unauthorized Access");
+}
+
+function showSection(type) {
+  activeSection = type;
+  document.querySelector('.main-portal-btns').classList.add('hidden');
+  document.getElementById('class-selector').classList.remove('hidden');
+  document.getElementById('current-section-title').innerText = type + " SECTIONS";
+  const grid = document.getElementById('class-buttons-grid');
+  grid.innerHTML = "";
+  let classes = (type === 'Primary') ? ['Primary 1','Primary 2','Primary 3','Primary 4','Primary 5','Primary 6'] : 
+                (type === 'JSS') ? ['JSS 1','JSS 2','JSS 3'] : ['SSS 1','SSS 2','SSS 3'];
+  classes.forEach(c => {
+    const btn = document.createElement('button'); btn.innerText = c;
+    btn.onclick = () => selectClass(c); grid.appendChild(btn);
+  });
+}
+
+function selectClass(c) {
+  activeClass = c;
+  document.getElementById('class-selector').classList.add('hidden');
+  document.getElementById('term-module').classList.remove('hidden');
+  document.getElementById('current-class-title').innerText = "Lessons for " + c;
+  refreshUploadLists();
+}
+
+function uploadLesson(n) {
+  const t = document.getElementById('title-'+n).value;
+  const f = document.getElementById('file-'+n).files[0];
+  if(!t || !f) return showToast("Fill all fields");
+  db.push({ id: Date.now(), section: activeSection, class: activeClass, term: n, title: t, fileName: f.name });
+  localStorage.setItem('zapphub_db', JSON.stringify(db));
+  document.getElementById('title-'+n).value = ""; refreshUploadLists();
+}
+
+function refreshUploadLists() {
+  for(let i=1; i<=3; i++) {
+    const list = document.getElementById('list-' + i); list.innerHTML = "";
+    db.filter(item => item.class === activeClass && item.term === i).forEach(item => {
+      const div = document.createElement('div');
+      div.style.cssText = "padding:10px; background:var(--term-content-bg); border:1px solid var(--reading-pane-border); margin-top:5px; border-radius:5px; display:flex; justify-content:space-between; align-items:center;";
+      div.innerHTML = `<span>${item.title}</span> <button onclick="deleteItem(${item.id})" style="width:auto; padding:5px; background:red; color:white; font-size:10px;">Delete</button>`;
+      list.appendChild(div);
+    });
+  }
+}
+
+function deleteItem(id) {
+  db = db.filter(i => i.id !== id); localStorage.setItem('zapphub_db', JSON.stringify(db)); refreshUploadLists();
+}
+
+function adminBackward() {
+  if (!document.getElementById('term-module').classList.contains('hidden')) backToClasses();
+  else if (!document.getElementById('class-selector').classList.contains('hidden')) resetToMain();
+  else showScreen('portal-selection');
+}
+
+function resetToMain() {
+  document.getElementById('class-selector').classList.add('hidden');
+  document.querySelector('.main-portal-btns').classList.remove('hidden');
+}
+
+function backToClasses() {
+  document.getElementById('term-module').classList.add('hidden');
+  document.getElementById('class-selector').classList.remove('hidden');
+}
+
+function toggleTerm(n) {
+  const c = document.getElementById('content-'+n);
+  const h = c.classList.contains('hidden');
+  document.querySelectorAll('.term-content').forEach(x => x.classList.add('hidden'));
+  if(h) c.classList.remove('hidden');
+}
+
+function renderStudentPortal(filter = "") {
+  const container = document.getElementById('student-display');
+  container.innerHTML = "";
+  const filtered = db.filter(i => i.title.toLowerCase().includes(filter.toLowerCase()) || i.class.toLowerCase().includes(filter.toLowerCase()));
+  if(!selectedStudentClass && filter === "") {
+    const categories = [...new Set(db.map(i => i.class))];
+    const grid = document.createElement('div'); grid.className = 'category-grid';
+    categories.forEach(c => {
+      const card = document.createElement('div'); card.className = 'category-card';
+      card.innerHTML = `<span>${c}</span><span style="font-size:12px; color:gray">${db.filter(i=>i.class===c).length} Lessons</span>`;
+      card.onclick = () => { selectedStudentClass = c; renderStudentPortal(); };
+      grid.appendChild(card);
+    });
+    container.appendChild(grid);
+  } else {
+    const list = selectedStudentClass ? filtered.filter(i => i.class === selectedStudentClass) : filtered;
+    list.forEach(i => {
+      const card = document.createElement('div');
+      card.style.cssText = "background:var(--card-bg); padding:15px; margin-bottom:10px; border-radius:10px; border-left:5px solid #3498db; text-align:left;";
+      card.innerHTML = `<strong>${i.class} - T${i.term}</strong><br><span>${i.title}</span><br><button class="btn-read" onclick="openLesson(${i.id})">Read</button>`;
+      container.appendChild(card);
+    });
+  }
+}
+
+function openLesson(id) {
+  const l = db.find(i => i.id === id);
+  if(!l) return;
+  document.getElementById('view-title').innerText = l.title;
+  document.getElementById('view-filename').innerText = l.fileName;
+  showScreen('lesson-viewer');
+}
+
+// Init
+const savedImg = localStorage.getItem('zapphub_user_image');
+if(savedImg) document.querySelector('.profile-circle').style.backgroundImage = `url(${savedImg})`;
+const storedTheme = localStorage.getItem('zapphub_theme') || 'light';
+document.body.setAttribute('data-theme', storedTheme);
+if(document.getElementById('dark-mode-toggle')) document.getElementById('dark-mode-toggle').checked = (storedTheme === 'dark');
+</script>
+
+</body>
+</html>
