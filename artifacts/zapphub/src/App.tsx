@@ -14,6 +14,14 @@ interface AppContact { id: number; name: string; img: string; }
 interface Message { text: string; sent: boolean; }
 interface ChatProfile { name: string; bio: string; phone: string; email: string; img: string; }
 interface Group { id: number; name: string; description: string; img: string; memberIds: number[]; }
+interface ZapphubUser { id: number; name: string; email: string; phone: string; img: string; }
+
+function stringToColor(str: string) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  return `hsl(${Math.abs(hash) % 360}, 52%, 42%)`;
+}
+function normalizePhone(p: string) { return p.replace(/[\s\-()+]/g, "").slice(-10); }
 
 const ADMIN_CREDS = { user: "Samuel Chibuike Azubuike", pass: "Lordmayor" };
 const MAX_GROUP_MEMBERS = 1000;
@@ -71,9 +79,20 @@ export default function App() {
   // Registration / Login
   const [regName, setRegName] = useState("");
   const [regEmail, setRegEmail] = useState("");
+  const [regPhone, setRegPhone] = useState("");
   const [regPass, setRegPass] = useState("");
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPass, setLoginPass] = useState("");
+
+  // Zapphub registered users (persisted)
+  const [zapphubUsers, setZapphubUsers] = useState<ZapphubUser[]>(() =>
+    JSON.parse(localStorage.getItem("zapphub_registered_users") || "[]")
+  );
+
+  // Contacts screen
+  const [contactSearch, setContactSearch] = useState("");
+  const [phonebookMatches, setPhonebookMatches] = useState<ZapphubUser[]>([]);
+  const [contactsLoading, setContactsLoading] = useState(false);
 
   // Chat navigation
   const [chatView, setChatView] = useState<ChatView>("landing");
@@ -140,6 +159,30 @@ export default function App() {
   useEffect(() => { localStorage.setItem("zapphub_groups", JSON.stringify(groups)); }, [groups]);
   useEffect(() => { localStorage.setItem("zapphub_chat_profile", JSON.stringify(chatProfile)); }, [chatProfile]);
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, groupMessages]);
+
+  // Open contacts: try device Contact Picker API, fallback to all registered users
+  async function openContactsScreen() {
+    setContactSearch("");
+    setChatView("contacts");
+    const others = zapphubUsers.filter(u => normalizePhone(u.phone) !== normalizePhone(chatProfile.phone));
+    const nav = navigator as Navigator & { contacts?: { select: (props: string[], opts?: { multiple?: boolean }) => Promise<{ name?: string[]; tel?: string[] }[]> } };
+    if (!nav.contacts) {
+      setPhonebookMatches(others);
+      return;
+    }
+    setContactsLoading(true);
+    try {
+      const picked = await nav.contacts.select(["name", "tel"], { multiple: true });
+      const pickedNorms = picked.flatMap(c => (c.tel || []).map(normalizePhone));
+      const matched = others.filter(u => pickedNorms.includes(normalizePhone(u.phone)));
+      setPhonebookMatches(matched);
+      if (matched.length === 0) showToast("No Zapphub contacts found in your phonebook");
+    } catch {
+      setPhonebookMatches(others);
+    } finally {
+      setContactsLoading(false);
+    }
+  }
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -571,40 +614,100 @@ export default function App() {
 
   if (screen === "registration") return (
     <>
-      <div className="screen"><div className="container">
-        <h2>Create Account</h2>
-        <input type="text" placeholder="Full Name" value={regName} onChange={e => setRegName(e.target.value)} />
-        <input type="email" placeholder="Email" value={regEmail} onChange={e => setRegEmail(e.target.value)} />
-        <input type="password" placeholder="Password" value={regPass} onChange={e => setRegPass(e.target.value)} />
-        <button className="btn-blue" onClick={() => {
-          if (regEmail) setUserEmail(regEmail);
-          // Auto-create chat profile from registration
-          const newProfile: ChatProfile = { name: regName, bio: "", phone: "", email: regEmail, img: "" };
-          setChatProfile(newProfile);
-          localStorage.setItem("zapphub_chat_profile", JSON.stringify(newProfile));
-          goTo("login");
-        }}>Register</button>
-        <p onClick={() => goTo("login")} style={{ cursor: "pointer", color: "#3498db", marginTop: 15 }}>
-          Already have an account? Login
-        </p>
-      </div></div>
+      <div className="screen auth-screen">
+        <div className="auth-card">
+          <div className="auth-logo-row">
+            <div className="auth-logo-icon">Z</div>
+            <span className="auth-logo-text">Zapphub</span>
+          </div>
+          <h2 className="auth-heading">Create Account</h2>
+          <p className="auth-sub">Join the educational community</p>
+
+          <div className="auth-field">
+            <label>Full Name</label>
+            <input type="text" placeholder="e.g. Amaka Okafor" value={regName} onChange={e => setRegName(e.target.value)} />
+          </div>
+          <div className="auth-field">
+            <label>Email Address</label>
+            <input type="email" placeholder="you@example.com" value={regEmail} onChange={e => setRegEmail(e.target.value)} />
+          </div>
+          <div className="auth-field">
+            <label>Phone Number</label>
+            <input type="tel" placeholder="e.g. 08012345678" value={regPhone} onChange={e => setRegPhone(e.target.value)} />
+            <span className="auth-hint">Used to find you on Zapphub Chat</span>
+          </div>
+          <div className="auth-field">
+            <label>Password</label>
+            <input type="password" placeholder="Create a strong password" value={regPass} onChange={e => setRegPass(e.target.value)} />
+          </div>
+
+          <button className="btn-blue auth-btn" onClick={() => {
+            if (!regName.trim() || !regEmail.trim() || !regPhone.trim() || !regPass.trim()) {
+              showToast("All fields are required"); return;
+            }
+            const newUser: ZapphubUser = { id: Date.now(), name: regName.trim(), email: regEmail.trim(), phone: normalizePhone(regPhone), img: "" };
+            const updated = [...zapphubUsers.filter(u => u.email !== newUser.email), newUser];
+            setZapphubUsers(updated);
+            localStorage.setItem("zapphub_registered_users", JSON.stringify(updated));
+            const newProfile: ChatProfile = { name: newUser.name, bio: "", phone: newUser.phone, email: newUser.email, img: "" };
+            setChatProfile(newProfile);
+            localStorage.setItem("zapphub_chat_profile", JSON.stringify(newProfile));
+            setUserEmail(newUser.email);
+            showToast("Account created! Please log in.");
+            goTo("login");
+          }}>Create Account</button>
+
+          <p className="auth-switch">Already have an account?{" "}
+            <span onClick={() => goTo("login")}>Login</span>
+          </p>
+        </div>
+      </div>
       <ToastContainer toasts={toasts} onRemove={removeToast} />
     </>
   );
 
   if (screen === "login") return (
     <>
-      <div className="screen"><div className="container">
-        <h2>Login to Zapphub</h2>
-        <input type="text" placeholder="Email or Username" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} />
-        <input type="password" placeholder="Password" value={loginPass} onChange={e => setLoginPass(e.target.value)} />
-        <button className="btn-blue" onClick={() => {
-          if (loginEmail) setUserEmail(loginEmail);
-          // Sync email into chat profile if not already set
-          setChatProfile(prev => ({ ...prev, email: prev.email || loginEmail }));
-          goTo("user-dashboard");
-        }}>Login</button>
-      </div></div>
+      <div className="screen auth-screen">
+        <div className="auth-card">
+          <div className="auth-logo-row">
+            <div className="auth-logo-icon">Z</div>
+            <span className="auth-logo-text">Zapphub</span>
+          </div>
+          <h2 className="auth-heading">Welcome Back</h2>
+          <p className="auth-sub">Sign in to continue</p>
+
+          <div className="auth-field">
+            <label>Email or Phone Number</label>
+            <input type="text" placeholder="Email or phone number" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} />
+          </div>
+          <div className="auth-field">
+            <label>Password</label>
+            <input type="password" placeholder="Your password" value={loginPass} onChange={e => setLoginPass(e.target.value)} />
+          </div>
+
+          <button className="btn-blue auth-btn" onClick={() => {
+            const match = zapphubUsers.find(u =>
+              u.email === loginEmail.trim() ||
+              normalizePhone(u.phone) === normalizePhone(loginEmail)
+            );
+            if (match) {
+              setUserEmail(match.email);
+              const restored: ChatProfile = { name: match.name, bio: chatProfile.bio, phone: match.phone, email: match.email, img: match.img || chatProfile.img };
+              setChatProfile(restored);
+              localStorage.setItem("zapphub_chat_profile", JSON.stringify(restored));
+            } else {
+              if (loginEmail.trim()) setUserEmail(loginEmail.trim());
+              setChatProfile(prev => ({ ...prev, email: prev.email || loginEmail.trim() }));
+            }
+            goTo("user-dashboard");
+          }}>Login</button>
+
+          <p className="auth-switch">New to Zapphub?{" "}
+            <span onClick={() => goTo("registration")}>Create Account</span>
+          </p>
+        </div>
+      </div>
       <ToastContainer toasts={toasts} onRemove={removeToast} />
     </>
   );
@@ -665,7 +768,7 @@ export default function App() {
                 <h2>Chats</h2>
               </div>
               <div className="chat-header-right" ref={menuRef}>
-                <button className="btn-chat-nav" onClick={() => setChatView("contacts")}>New ➔</button>
+                <button className="btn-chat-nav" onClick={openContactsScreen}>New ➔</button>
                 {/* Profile avatar button */}
                 <div
                   className="chat-avatar-btn"
@@ -777,18 +880,48 @@ export default function App() {
 
           {/* CONTACTS */}
           <div className={`chat-view ${chatView === "contacts" ? "active" : ""}`}>
-            <header className="app-header-chat">
-              <button className="btn-chat-nav" onClick={() => setChatView("dashboard")}>← Back</button>
+            <header className="app-header-chat contacts-header">
+              <button className="btn-chat-nav contacts-back" onClick={() => setChatView("dashboard")}>← Back</button>
               <h2>Contacts</h2>
               <div />
             </header>
+            <div className="contacts-search-bar">
+              <input
+                type="text"
+                className="contacts-search-input"
+                placeholder="Search by name or phone…"
+                value={contactSearch}
+                onChange={e => setContactSearch(e.target.value)}
+              />
+            </div>
             <div className="list-container">
-              {APP_CONTACTS.map(c => (
-                <div key={c.id} className="item-row" onClick={() => startChat(c)}>
-                  <img src={c.img} className="avatar-sm" alt={c.name} />
-                  <div className="item-info"><h4>{c.name}</h4></div>
-                </div>
-              ))}
+              {contactsLoading ? (
+                <p className="empty-msg" style={{ padding: "32px 16px" }}>Searching contacts…</p>
+              ) : (() => {
+                const filtered = phonebookMatches.filter(u =>
+                  u.name.toLowerCase().includes(contactSearch.toLowerCase()) ||
+                  u.phone.includes(contactSearch)
+                );
+                if (filtered.length === 0) return (
+                  <div className="contacts-empty">
+                    <div className="contacts-empty-icon">👥</div>
+                    <p>No Zapphub contacts found.</p>
+                    <span>Invite friends to join Zapphub!</span>
+                  </div>
+                );
+                return filtered.map(u => (
+                  <div key={u.id} className="item-row contacts-row"
+                    onClick={() => startChat({ id: u.id, name: u.name, img: u.img || "" })}>
+                    <div className="contact-initials-avatar" style={{ background: stringToColor(u.name) }}>
+                      {u.name[0]?.toUpperCase() || "?"}
+                    </div>
+                    <div className="item-info">
+                      <h4>{u.name}</h4>
+                      <p>{u.phone}</p>
+                    </div>
+                  </div>
+                ));
+              })()}
             </div>
           </div>
 
