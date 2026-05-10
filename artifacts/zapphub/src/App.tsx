@@ -18,16 +18,27 @@ interface Group { id: number; name: string; description: string; img: string; me
 const ADMIN_CREDS = { user: "Samuel Chibuike Azubuike", pass: "Lordmayor" };
 const MAX_GROUP_MEMBERS = 1000;
 
-const PALETTE_COLORS = [
-  { name: "Emerald",  value: "#25d366" },
-  { name: "Teal",    value: "#008069" },
-  { name: "Blue",    value: "#3b82f6" },
-  { name: "Indigo",  value: "#4f46e5" },
-  { name: "Purple",  value: "#8b5cf6" },
-  { name: "Pink",    value: "#ec4899" },
-  { name: "Orange",  value: "#f97316" },
-  { name: "Red",     value: "#ef4444" },
-  { name: "Slate",   value: "#475569" },
+const PALETTE_ROWS: { label: string; shades: string[] }[] = [
+  { label: "Red",     shades: ["#fef2f2","#fecaca","#f87171","#ef4444","#dc2626","#b91c1c","#991b1b","#7f1d1d"] },
+  { label: "Rose",    shades: ["#fff1f2","#fecdd3","#fb7185","#f43f5e","#e11d48","#be123c","#9f1239","#881337"] },
+  { label: "Pink",    shades: ["#fdf2f8","#fbcfe8","#f472b6","#ec4899","#db2777","#be185d","#9d174d","#831843"] },
+  { label: "Fuchsia", shades: ["#fdf4ff","#f5d0fe","#e879f9","#d946ef","#c026d3","#a21caf","#86198f","#701a75"] },
+  { label: "Purple",  shades: ["#faf5ff","#e9d5ff","#c084fc","#a855f7","#9333ea","#7e22ce","#6b21a8","#581c87"] },
+  { label: "Violet",  shades: ["#f5f3ff","#ddd6fe","#a78bfa","#8b5cf6","#7c3aed","#6d28d9","#5b21b6","#4c1d95"] },
+  { label: "Indigo",  shades: ["#eef2ff","#c7d2fe","#818cf8","#6366f1","#4f46e5","#4338ca","#3730a3","#312e81"] },
+  { label: "Blue",    shades: ["#eff6ff","#bfdbfe","#60a5fa","#3b82f6","#2563eb","#1d4ed8","#1e40af","#1e3a8a"] },
+  { label: "Sky",     shades: ["#f0f9ff","#bae6fd","#38bdf8","#0ea5e9","#0284c7","#0369a1","#075985","#0c4a6e"] },
+  { label: "Cyan",    shades: ["#ecfeff","#a5f3fc","#22d3ee","#06b6d4","#0891b2","#0e7490","#155e75","#164e63"] },
+  { label: "Teal",    shades: ["#f0fdfa","#99f6e4","#2dd4bf","#14b8a6","#0d9488","#0f766e","#115e59","#134e4a"] },
+  { label: "Emerald", shades: ["#ecfdf5","#a7f3d0","#34d399","#10b981","#059669","#047857","#065f46","#064e3b"] },
+  { label: "Green",   shades: ["#f0fdf4","#bbf7d0","#4ade80","#22c55e","#16a34a","#15803d","#166534","#14532d"] },
+  { label: "Lime",    shades: ["#f7fee7","#d9f99d","#a3e635","#84cc16","#65a30d","#4d7c0f","#3f6212","#365314"] },
+  { label: "Yellow",  shades: ["#fefce8","#fef08a","#facc15","#eab308","#ca8a04","#a16207","#854d0e","#713f12"] },
+  { label: "Amber",   shades: ["#fffbeb","#fde68a","#fbbf24","#f59e0b","#d97706","#b45309","#92400e","#78350f"] },
+  { label: "Orange",  shades: ["#fff7ed","#fed7aa","#fb923c","#f97316","#ea580c","#c2410c","#9a3412","#7c2d12"] },
+  { label: "Stone",   shades: ["#fafaf9","#e7e5e4","#a8a29e","#78716c","#57534e","#44403c","#292524","#1c1917"] },
+  { label: "Gray",    shades: ["#f9fafb","#e5e7eb","#9ca3af","#6b7280","#4b5563","#374151","#1f2937","#111827"] },
+  { label: "Slate",   shades: ["#f8fafc","#e2e8f0","#94a3b8","#64748b","#475569","#334155","#1e293b","#0f172a"] },
 ];
 
 const APP_CONTACTS: AppContact[] = [
@@ -82,6 +93,10 @@ export default function App() {
     return saved ? JSON.parse(saved) : { name: "", bio: "", phone: "", email: "", img: "" };
   });
 
+  // Colour palette panel
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const paletteRef = useRef<HTMLDivElement>(null);
+
   // Chat menu & modals
   const [chatMenuOpen, setChatMenuOpen] = useState(false);
   const [chatModal, setChatModal] = useState<ChatModal>(null);
@@ -126,10 +141,11 @@ export default function App() {
   useEffect(() => { localStorage.setItem("zapphub_chat_profile", JSON.stringify(chatProfile)); }, [chatProfile]);
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, groupMessages]);
 
-  // Close dropdown on outside click
+  // Close dropdowns on outside click
   useEffect(() => {
     function handleOutside(e: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) setChatMenuOpen(false);
+      if (paletteRef.current && !paletteRef.current.contains(e.target as Node)) setPaletteOpen(false);
     }
     document.addEventListener("mousedown", handleOutside);
     return () => document.removeEventListener("mousedown", handleOutside);
@@ -679,21 +695,56 @@ export default function App() {
                 )}
               </div>
             </header>
-            {/* COLOUR PALETTE STRIP — top-left of dashboard */}
-            <div className="palette-strip">
-              <span className="palette-strip-label">Colour</span>
-              {PALETTE_COLORS.map(c => (
-                <div
-                  key={c.value}
-                  className={`palette-swatch${chatBubbleColor === c.value ? " selected" : ""}`}
-                  style={{ backgroundColor: c.value }}
-                  title={c.name}
-                  onClick={() => {
-                    setChatBubbleColor(c.value);
-                    localStorage.setItem("zapphub_bubble_color", c.value);
-                  }}
-                />
-              ))}
+            {/* COLOUR PALETTE TRIGGER — top-left of dashboard */}
+            <div className="palette-trigger-bar" ref={paletteRef}>
+              <button className="palette-trigger-btn" onClick={() => setPaletteOpen(prev => !prev)}>
+                <span className="palette-trigger-dot" style={{ backgroundColor: chatBubbleColor }} />
+                <span>Chat Colour</span>
+                <span className="palette-trigger-hex">{chatBubbleColor.toUpperCase()}</span>
+                <span className="palette-trigger-arrow">{paletteOpen ? "▲" : "▼"}</span>
+              </button>
+
+              {paletteOpen && (
+                <div className="palette-panel">
+                  {/* Selected preview */}
+                  <div className="palette-selected-row">
+                    <div className="palette-selected-dot" style={{ backgroundColor: chatBubbleColor }} />
+                    <div className="palette-selected-info">
+                      <span className="palette-selected-label">Selected Colour</span>
+                      <span className="palette-selected-hex">{chatBubbleColor.toUpperCase()}</span>
+                    </div>
+                    <button className="palette-copy-btn" onClick={() => {
+                      navigator.clipboard?.writeText(chatBubbleColor).then(() => showToast("Hex code copied!"));
+                    }}>Copy</button>
+                  </div>
+
+                  {/* Full colour grid */}
+                  <div className="palette-grid-scroll">
+                    {PALETTE_ROWS.map(row => (
+                      <div key={row.label} className="palette-row">
+                        <span className="palette-row-label">{row.label}</span>
+                        <div className="palette-shades">
+                          {row.shades.map(hex => (
+                            <div
+                              key={hex}
+                              className={`palette-cell${chatBubbleColor === hex ? " palette-cell-active" : ""}`}
+                              style={{ backgroundColor: hex }}
+                              title={hex.toUpperCase()}
+                              onClick={() => {
+                                setChatBubbleColor(hex);
+                                localStorage.setItem("zapphub_bubble_color", hex);
+                              }}
+                            >
+                              {chatBubbleColor === hex && <span className="palette-cell-tick">✓</span>}
+                              <span className="palette-cell-code">{hex.toUpperCase()}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="list-container">
