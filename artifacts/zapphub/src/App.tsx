@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useAuth } from "@workspace/replit-auth-web";
 
 // ---- TYPES ----
 type Screen =
@@ -74,9 +73,6 @@ function ToastContainer({ toasts, onRemove }: { toasts: ToastItem[]; onRemove: (
 
 // ---- MAIN APP ----
 export default function App() {
-  // Replit Auth
-  const { user: replitUser, isLoading: authLoading, isAuthenticated, login, logout } = useAuth();
-
   // Core
   const [screen, setScreen] = useState<Screen>("onboarding");
   const [theme, setTheme] = useState<"light" | "dark">(() => (localStorage.getItem("zapphub_theme") as "light" | "dark") || "light");
@@ -169,32 +165,6 @@ export default function App() {
   useEffect(() => { localStorage.setItem("zapphub_chat_profile", JSON.stringify(chatProfile)); }, [chatProfile]);
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, groupMessages]);
 
-  // Auto-navigate to dashboard when Replit Auth completes
-  useEffect(() => {
-    if (isAuthenticated && screen === "onboarding") goTo("user-dashboard");
-  }, [isAuthenticated, screen]);
-
-  // Sync Replit Auth user into local Zapphub state
-  useEffect(() => {
-    if (!replitUser) return;
-    const fullName = [replitUser.firstName, replitUser.lastName].filter(Boolean).join(" ") || replitUser.email || "Zapphub User";
-    const numId = stableNumericId(replitUser.id);
-    setZapphubUsers(prev => {
-      if (prev.find(u => u.id === numId)) return prev;
-      const newUser: ZapphubUser = { id: numId, name: fullName, email: replitUser.email || "", phone: "", img: replitUser.profileImageUrl || "" };
-      const updated = [...prev, newUser];
-      localStorage.setItem("zapphub_registered_users", JSON.stringify(updated));
-      return updated;
-    });
-    setChatProfile(prev => ({
-      name: prev.name || fullName,
-      bio: prev.bio,
-      phone: prev.phone,
-      email: prev.email || replitUser.email || "",
-      img: prev.img || replitUser.profileImageUrl || "",
-    }));
-    setUserEmail(prev => prev === "user@zapphub.com" ? (replitUser.email || prev) : prev);
-  }, [replitUser]);
 
   // Open contacts: try device Contact Picker API, fallback to all registered users
   async function openContactsScreen() {
@@ -639,33 +609,18 @@ export default function App() {
 
   if (screen === "onboarding") return (
     <>
-      {authLoading ? (
-        <div className="screen auth-screen">
-          <div className="auth-card" style={{ textAlign: "center" }}>
-            <div className="auth-logo-row"><div className="auth-logo-icon">Z</div><span className="auth-logo-text">Zapphub</span></div>
-            <p style={{ color: "#888", marginTop: 16 }}>Loading…</p>
+      <div className="screen auth-screen">
+        <div className="auth-card">
+          <div className="auth-logo-row">
+            <div className="auth-logo-icon">Z</div>
+            <span className="auth-logo-text">Zapphub</span>
           </div>
+          <h2 className="auth-heading">Welcome to Zapphub</h2>
+          <p className="auth-sub">Educational resources for secondary school students.</p>
+          <button className="btn-blue auth-btn" style={{ marginTop: 24 }} onClick={() => goTo("registration")}>Get Started</button>
+          <button className="btn-outline auth-btn" style={{ marginTop: 10 }} onClick={() => goTo("login")}>Log in</button>
         </div>
-      ) : !isAuthenticated ? (
-        <div className="screen auth-screen">
-          <div className="auth-card">
-            <div className="auth-logo-row">
-              <div className="auth-logo-icon">Z</div>
-              <span className="auth-logo-text">Zapphub</span>
-            </div>
-            <h2 className="auth-heading">Welcome to Zapphub</h2>
-            <p className="auth-sub">Educational resources for secondary school students.</p>
-            <button className="btn-blue auth-btn" style={{ marginTop: 24 }} onClick={login}>Log in</button>
-          </div>
-        </div>
-      ) : (
-        <div className="screen auth-screen">
-          <div className="auth-card" style={{ textAlign: "center" }}>
-            <div className="auth-logo-row"><div className="auth-logo-icon">Z</div><span className="auth-logo-text">Zapphub</span></div>
-            <p style={{ color: "#888", marginTop: 16 }}>Redirecting…</p>
-          </div>
-        </div>
-      )}
+      </div>
       <ToastContainer toasts={toasts} onRemove={removeToast} />
     </>
   );
@@ -780,18 +735,12 @@ export default function App() {
             <input type="file" ref={profileInputRef} hidden accept="image/*" onChange={handleProfilePic} />
             <span className="display-email">{userEmail}</span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <div className="theme-toggle-container">
-              Dark Mode
-              <label className="switch">
-                <input type="checkbox" checked={theme === "dark"} onChange={e => setTheme(e.target.checked ? "dark" : "light")} />
-                <span className="slider round" />
-              </label>
-            </div>
-            <button
-              onClick={logout}
-              style={{ background: "none", border: "1.5px solid #ef4444", color: "#ef4444", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}
-            >Log out</button>
+          <div className="theme-toggle-container">
+            Dark Mode
+            <label className="switch">
+              <input type="checkbox" checked={theme === "dark"} onChange={e => setTheme(e.target.checked ? "dark" : "light")} />
+              <span className="slider round" />
+            </label>
           </div>
         </div>
         <div className="chat-gateway-card" onClick={() => { setChatView("landing"); goTo("chat-app"); }}>
