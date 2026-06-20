@@ -369,7 +369,10 @@ export default function App() {
   // ---- STUDENT / TEACHER ----
   const studentDb = db.filter(i => i.section !== "WAEC-JAMB");
   const waecJambDb = db.filter(i => i.section === "WAEC-JAMB");
-  const filteredLessons = studentDb.filter(i => i.title.toLowerCase().includes(searchQuery.toLowerCase()) || i.class.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredLessons = studentDb.filter(i => {
+    const q = searchQuery.toLowerCase();
+    return i.title.toLowerCase().includes(q) || i.class.toLowerCase().includes(q) || i.section.toLowerCase().includes(q);
+  });
   const filteredTeacherLessons = waecJambDb.filter(i => i.title.toLowerCase().includes(teacherSearchQuery.toLowerCase()) || i.class.toLowerCase().includes(teacherSearchQuery.toLowerCase()));
   function openLesson(id: number) { const l = db.find(i => i.id === id); if (!l) return; setViewLesson(l); setLessonReturnScreen("student-portal"); goTo("lesson-viewer"); }
   function openTeacherLesson(id: number) { const l = db.find(i => i.id === id); if (!l) return; setViewLesson(l); setLessonReturnScreen("teacher-portal"); goTo("teacher-lesson-viewer"); }
@@ -1103,37 +1106,110 @@ export default function App() {
   }
 
   if (screen === "student-portal") {
-    const classes = [...new Set(studentDb.map(i => i.class))];
+    const SECTION_ORDER = ["Pre-Nursery/Nursery", "Primary", "JSS", "SSS"];
+    const SECTION_LABELS: Record<string, string> = {
+      "Pre-Nursery/Nursery": "Pre-Nursery / Nursery",
+      "Primary": "Primary School",
+      "JSS": "Junior Secondary School",
+      "SSS": "Senior Secondary School",
+    };
+    const TERM_LABELS = ["First Term", "Second Term", "Third Term"];
     const showingSearch = searchQuery.trim() !== "";
-    const listToShow = selectedStudentClass ? filteredLessons.filter(i => i.class === selectedStudentClass) : filteredLessons;
+
+    // sections that have at least one lesson
+    const activeSections = SECTION_ORDER.filter(sec => studentDb.some(i => i.section === sec));
+    // classes in a section
+    const classesInSection = (sec: string) => [...new Set(studentDb.filter(i => i.section === sec).map(i => i.class))];
+    // lessons for selected class, grouped by term
+    const lessonsByTerm = (term: number) => studentDb.filter(i => i.class === selectedStudentClass && i.term === term);
+
     return (
       <>
         <div className="screen">
           <h2 className="screen-title">Student Learning Portal</h2>
-          <input type="search" placeholder="Search by topic or class..." value={searchQuery}
-            onChange={e => { setSearchQuery(e.target.value); setSelectedStudentClass(null); }} />
-          {!showingSearch && !selectedStudentClass && (
-            <div className="category-grid">
-              {classes.length === 0 && <p style={{ color: "var(--grey)", gridColumn: "1/-1" }}>No lessons uploaded yet.</p>}
-              {classes.map(c => (
-                <div key={c} className="category-card" onClick={() => setSelectedStudentClass(c)}>
-                  <span>{c}</span><span className="sub">{db.filter(i => i.class === c).length} Lessons</span>
-                </div>
-              ))}
-            </div>
-          )}
-          {(showingSearch || selectedStudentClass) && (
+
+          {/* Search bar */}
+          <div className="sp-search-wrap">
+            <span className="sp-search-icon">🔍</span>
+            <input
+              type="search"
+              className="sp-search-input"
+              placeholder="Search subjects, lessons, topics…"
+              value={searchQuery}
+              onChange={e => { setSearchQuery(e.target.value); setSelectedStudentClass(null); }}
+            />
+            {searchQuery && (
+              <button className="sp-search-clear" onClick={() => setSearchQuery("")}>✕</button>
+            )}
+          </div>
+
+          {/* Search results */}
+          {showingSearch && (
             <div>
-              {selectedStudentClass && !showingSearch && <button className="btn-grey" style={{ marginBottom: 12 }} onClick={() => setSelectedStudentClass(null)}>← All Classes</button>}
-              {listToShow.length === 0 && <p style={{ color: "var(--grey)", textAlign: "center", marginTop: 20 }}>No lessons found.</p>}
-              {listToShow.map(i => (
+              <p className="sp-result-count">
+                {filteredLessons.length === 0 ? "No results found" : `${filteredLessons.length} result${filteredLessons.length !== 1 ? "s" : ""} for "${searchQuery}"`}
+              </p>
+              {filteredLessons.map(i => (
                 <div key={i.id} className="lesson-card">
-                  <strong>{i.class} — Term {i.term}</strong><span>{i.title}</span><br />
+                  <div className="lc-meta">{SECTION_LABELS[i.section] ?? i.section} › {i.class} › {TERM_LABELS[i.term - 1]}</div>
+                  <strong>{i.title}</strong>
                   <button className="btn-read" onClick={() => openLesson(i.id)}>Read</button>
                 </div>
               ))}
             </div>
           )}
+
+          {/* Class drill-down: lessons grouped by term */}
+          {!showingSearch && selectedStudentClass && (
+            <div>
+              <button className="sp-back-btn" onClick={() => setSelectedStudentClass(null)}>← Back to Classes</button>
+              <h3 className="sp-class-heading">{selectedStudentClass}</h3>
+              {[1, 2, 3].map(n => {
+                const lessons = lessonsByTerm(n);
+                if (lessons.length === 0) return null;
+                return (
+                  <div key={n} className="sp-term-group">
+                    <div className="sp-term-header">{TERM_LABELS[n - 1]}<span className="sp-term-count">{lessons.length}</span></div>
+                    {lessons.map(i => (
+                      <div key={i.id} className="lesson-card">
+                        <strong>{i.title}</strong>
+                        <button className="btn-read" onClick={() => openLesson(i.id)}>Read</button>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+              {[1, 2, 3].every(n => lessonsByTerm(n).length === 0) && (
+                <p style={{ color: "var(--grey)", textAlign: "center", marginTop: 20 }}>No lessons for this class yet.</p>
+              )}
+            </div>
+          )}
+
+          {/* Browse: sections with class cards */}
+          {!showingSearch && !selectedStudentClass && (
+            <div>
+              {activeSections.length === 0 && (
+                <p style={{ color: "var(--grey)", textAlign: "center", marginTop: 30 }}>No lessons uploaded yet.</p>
+              )}
+              {activeSections.map(sec => (
+                <div key={sec} className="sp-section-group">
+                  <div className="sp-section-header">
+                    <span className="sp-section-dot" />
+                    {SECTION_LABELS[sec]}
+                  </div>
+                  <div className="category-grid">
+                    {classesInSection(sec).map(c => (
+                      <div key={c} className="category-card" onClick={() => setSelectedStudentClass(c)}>
+                        <span>{c}</span>
+                        <span className="sub">{studentDb.filter(i => i.class === c).length} lesson{studentDb.filter(i => i.class === c).length !== 1 ? "s" : ""}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
           <button className="btn-grey gap-v" onClick={() => goTo("portal-selection")}>Exit Portal</button>
         </div>
         <ToastContainer toasts={toasts} onRemove={removeToast} />
