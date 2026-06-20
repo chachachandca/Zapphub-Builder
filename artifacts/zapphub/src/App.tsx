@@ -357,11 +357,20 @@ export default function App() {
   function adminBackward() { if (adminView === "terms") setAdminView("classes"); else if (adminView === "classes") setAdminView("main"); else goTo("portal-selection"); }
   function adminForward() { if (adminView === "main") showToast("Select a section first"); else if (adminView === "classes") showToast("Select a class first"); else showToast("You are at the deepest level"); }
   function toggleTerm(n: number) { setOpenTerm(prev => prev === n ? null : n); }
-  const classOptions = (type: string) => type === "Primary" ? ["Primary 1","Primary 2","Primary 3","Primary 4","Primary 5","Primary 6"] : type === "JSS" ? ["JSS 1","JSS 2","JSS 3"] : ["SSS 1","SSS 2","SSS 3"];
+  const classOptions = (type: string) => {
+    if (type === "Primary") return ["Primary 1","Primary 2","Primary 3","Primary 4","Primary 5","Primary 6"];
+    if (type === "JSS") return ["JSS 1","JSS 2","JSS 3"];
+    if (type === "SSS") return ["SSS 1","SSS 2","SSS 3"];
+    if (type === "Pre-Nursery/Nursery") return ["Pre-Nursery","Nursery 1","Nursery 2","Nursery 3"];
+    if (type === "WAEC-JAMB") return ["WAEC","JAMB"];
+    return [];
+  };
 
   // ---- STUDENT / TEACHER ----
-  const filteredLessons = db.filter(i => i.title.toLowerCase().includes(searchQuery.toLowerCase()) || i.class.toLowerCase().includes(searchQuery.toLowerCase()));
-  const filteredTeacherLessons = db.filter(i => i.title.toLowerCase().includes(teacherSearchQuery.toLowerCase()) || i.class.toLowerCase().includes(teacherSearchQuery.toLowerCase()));
+  const studentDb = db.filter(i => i.section !== "WAEC-JAMB");
+  const waecJambDb = db.filter(i => i.section === "WAEC-JAMB");
+  const filteredLessons = studentDb.filter(i => i.title.toLowerCase().includes(searchQuery.toLowerCase()) || i.class.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredTeacherLessons = waecJambDb.filter(i => i.title.toLowerCase().includes(teacherSearchQuery.toLowerCase()) || i.class.toLowerCase().includes(teacherSearchQuery.toLowerCase()));
   function openLesson(id: number) { const l = db.find(i => i.id === id); if (!l) return; setViewLesson(l); setLessonReturnScreen("student-portal"); goTo("lesson-viewer"); }
   function openTeacherLesson(id: number) { const l = db.find(i => i.id === id); if (!l) return; setViewLesson(l); setLessonReturnScreen("teacher-portal"); goTo("teacher-lesson-viewer"); }
 
@@ -1011,7 +1020,7 @@ export default function App() {
         <div className="portal-grid">
           <div className="portal-white-card" onClick={() => goTo("admin-gate")}>Admin Portal</div>
           <div className="portal-white-card" onClick={() => goTo("student-portal")}>Student Portal</div>
-          <div className="portal-white-card" onClick={() => goTo("teacher-portal")}>Teachers Portal</div>
+          <div className="portal-white-card" onClick={() => goTo("teacher-portal")}>WAEC / JAMB</div>
         </div>
         <button className="btn-grey" onClick={() => goTo("user-dashboard")}>Back to Home</button>
       </div>
@@ -1045,9 +1054,11 @@ export default function App() {
           </div>
           {adminView === "main" && (
             <div className="main-portal-btns">
+              <button className="btn-white" onClick={() => showSection("Pre-Nursery/Nursery")}>Pre-Nursery / Nursery</button>
               <button className="btn-white" onClick={() => showSection("Primary")}>Primary</button>
               <button className="btn-white" onClick={() => showSection("JSS")}>Junior Secondary</button>
               <button className="btn-white" onClick={() => showSection("SSS")}>Senior Secondary</button>
+              <button className="btn-white" onClick={() => showSection("WAEC-JAMB")}>WAEC / JAMB Past Questions</button>
             </div>
           )}
           {adminView === "classes" && (
@@ -1092,7 +1103,7 @@ export default function App() {
   }
 
   if (screen === "student-portal") {
-    const classes = [...new Set(db.map(i => i.class))];
+    const classes = [...new Set(studentDb.map(i => i.class))];
     const showingSearch = searchQuery.trim() !== "";
     const listToShow = selectedStudentClass ? filteredLessons.filter(i => i.class === selectedStudentClass) : filteredLessons;
     return (
@@ -1131,13 +1142,13 @@ export default function App() {
   }
 
   if (screen === "teacher-portal") {
-    const classes = [...new Set(db.map(i => i.class))];
+    const classes = [...new Set(waecJambDb.map(i => i.class))];
     const showingSearch = teacherSearchQuery.trim() !== "";
     const listToShow = selectedTeacherClass ? filteredTeacherLessons.filter(i => i.class === selectedTeacherClass) : filteredTeacherLessons;
     return (
       <>
         <div className="screen">
-          <h2 className="screen-title">Teachers Learning Portal</h2>
+          <h2 className="screen-title">WAEC / JAMB Past Questions</h2>
           <input type="search" placeholder="Search by topic or class..." value={teacherSearchQuery}
             onChange={e => { setTeacherSearchQuery(e.target.value); setSelectedTeacherClass(null); }} />
           {!showingSearch && !selectedTeacherClass && (
