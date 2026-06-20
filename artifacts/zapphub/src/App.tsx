@@ -4,12 +4,14 @@ import { useState, useEffect, useRef, useCallback } from "react";
 type Screen =
   | "onboarding" | "registration" | "login" | "user-dashboard"
   | "chat-app" | "portal-selection" | "admin-gate" | "admin-dashboard"
-  | "student-portal" | "lesson-viewer" | "teacher-portal" | "teacher-lesson-viewer";
+  | "student-portal" | "lesson-viewer" | "teacher-portal" | "teacher-lesson-viewer"
+  | "watch-and-learn" | "video-player";
 
 type ChatView = "landing" | "dashboard" | "contacts" | "room" | "group-room";
 type ChatModal = null | "view-profile" | "profile-pic" | "edit-profile" | "create-group" | "edit-group";
 
 interface Lesson { id: number; section: string; class: string; term: number; title: string; fileName: string; }
+interface VideoItem { id: number; title: string; type: "youtube" | "local"; youtubeId?: string; fileName?: string; objectUrl?: string; }
 interface AppContact { id: number; name: string; img: string; }
 interface Message { text: string; sent: boolean; }
 interface ChatProfile { name: string; bio: string; phone: string; email: string; img: string; }
@@ -140,8 +142,17 @@ export default function App() {
   const groupPicInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Videos (Watch and Learn)
+  const [videos, setVideos] = useState<VideoItem[]>(() => JSON.parse(localStorage.getItem("zapphub_videos") || "[]"));
+  const [activeVideo, setActiveVideo] = useState<VideoItem | null>(null);
+  const [watchUploadTab, setWatchUploadTab] = useState<"youtube" | "local">("youtube");
+  const [watchTitle, setWatchTitle] = useState("");
+  const [watchYtUrl, setWatchYtUrl] = useState("");
+  const [watchLocalFile, setWatchLocalFile] = useState<File | null>(null);
+  const videoObjectUrls = useRef<Map<number, string>>(new Map());
+
   // Admin
-  const [adminView, setAdminView] = useState<"main" | "classes" | "terms">("main");
+  const [adminView, setAdminView] = useState<"main" | "classes" | "terms" | "watch-upload">("main");
   const [activeSection, setActiveSection] = useState("");
   const [activeClass, setActiveClass] = useState("");
   const [openTerm, setOpenTerm] = useState<number | null>(null);
@@ -163,6 +174,11 @@ export default function App() {
   useEffect(() => { localStorage.setItem("zapphub_db", JSON.stringify(db)); }, [db]);
   useEffect(() => { localStorage.setItem("zapphub_groups", JSON.stringify(groups)); }, [groups]);
   useEffect(() => { localStorage.setItem("zapphub_chat_profile", JSON.stringify(chatProfile)); }, [chatProfile]);
+  useEffect(() => {
+    // persist only metadata — objectUrl (blob) cannot survive page reload
+    const toStore = videos.map(v => ({ id: v.id, title: v.title, type: v.type, youtubeId: v.youtubeId, fileName: v.fileName }));
+    localStorage.setItem("zapphub_videos", JSON.stringify(toStore));
+  }, [videos]);
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, groupMessages]);
 
 
@@ -212,6 +228,8 @@ export default function App() {
     if (s === "student-portal") { setSelectedStudentClass(null); setSearchQuery(""); }
     if (s === "teacher-portal") { setSelectedTeacherClass(null); setTeacherSearchQuery(""); }
     if (s === "admin-dashboard") setAdminView("main");
+    if (s === "watch-and-learn") { /* no reset needed */ }
+    if (s !== "video-player") setActiveVideo(null);
     setScreen(s);
   }, []);
 
@@ -354,8 +372,50 @@ export default function App() {
     showToast("Lesson uploaded!");
   }
   function deleteItem(id: number) { setDb(prev => prev.filter(i => i.id !== id)); }
-  function adminBackward() { if (adminView === "terms") setAdminView("classes"); else if (adminView === "classes") setAdminView("main"); else goTo("portal-selection"); }
+  function adminBackward() {
+    if (adminView === "terms") setAdminView("classes");
+    else if (adminView === "classes") setAdminView("main");
+    else if (adminView === "watch-upload") setAdminView("main");
+    else goTo("portal-selection");
+  }
   function adminForward() { if (adminView === "main") showToast("Select a section first"); else if (adminView === "classes") showToast("Select a class first"); else showToast("You are at the deepest level"); }
+
+  // ---- VIDEO HELPERS ----
+  function extractYouTubeId(url: string): string | null {
+    const m = url.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+    return m ? m[1] : null;
+  }
+  function uploadVideo() {
+    if (!watchTitle.trim()) { showToast("Enter a title"); return; }
+    if (watchUploadTab === "youtube") {
+      const ytId = extractYouTubeId(watchYtUrl.trim());
+      if (!ytId) { showToast("Paste a valid YouTube link"); return; }
+      const item: VideoItem = { id: Date.now(), title: watchTitle.trim(), type: "youtube", youtubeId: ytId };
+      setVideos(prev => [...prev, item]);
+      setWatchTitle(""); setWatchYtUrl("");
+      showToast("YouTube video added!");
+    } else {
+      if (!watchLocalFile) { showToast("Select a video file"); return; }
+      const id = Date.now();
+      const objectUrl = URL.createObjectURL(watchLocalFile);
+      videoObjectUrls.current.set(id, objectUrl);
+      const item: VideoItem = { id, title: watchTitle.trim(), type: "local", fileName: watchLocalFile.name, objectUrl };
+      setVideos(prev => [...prev, item]);
+      setWatchTitle(""); setWatchLocalFile(null);
+      showToast("Video uploaded!");
+    }
+  }
+  function deleteVideo(id: number) {
+    const url = videoObjectUrls.current.get(id);
+    if (url) { URL.revokeObjectURL(url); videoObjectUrls.current.delete(id); }
+    setVideos(prev => prev.filter(v => v.id !== id));
+  }
+  function playVideo(v: VideoItem) {
+    // for local videos, restore objectUrl from ref if available
+    const objectUrl = v.type === "local" ? videoObjectUrls.current.get(v.id) : undefined;
+    setActiveVideo({ ...v, objectUrl });
+    goTo("video-player");
+  }
   function toggleTerm(n: number) { setOpenTerm(prev => prev === n ? null : n); }
   const classOptions = (type: string) => {
     if (type === "Primary") return ["Primary 1","Primary 2","Primary 3","Primary 4","Primary 5","Primary 6"];
@@ -1023,7 +1083,10 @@ export default function App() {
         <div className="portal-grid">
           <div className="portal-white-card" onClick={() => goTo("admin-gate")}>Admin Portal</div>
           <div className="portal-white-card" onClick={() => goTo("student-portal")}>Student Portal</div>
-          <div className="portal-white-card" onClick={() => goTo("teacher-portal")}>WAEC / JAMB</div>
+        </div>
+        <div className="portal-white-card" style={{ marginBottom: 12, padding: "22px 10px" }} onClick={() => goTo("teacher-portal")}>WAEC / JAMB</div>
+        <div className="portal-white-card wl-portal-card" style={{ marginBottom: 12 }} onClick={() => goTo("watch-and-learn")}>
+          <span className="wl-play-icon">▶</span> Watch &amp; Learn
         </div>
         <button className="btn-grey" onClick={() => goTo("user-dashboard")}>Back to Home</button>
       </div>
@@ -1062,6 +1125,7 @@ export default function App() {
               <button className="btn-white" onClick={() => showSection("JSS")}>Junior Secondary</button>
               <button className="btn-white" onClick={() => showSection("SSS")}>Senior Secondary</button>
               <button className="btn-white" onClick={() => showSection("WAEC-JAMB")}>WAEC / JAMB Past Questions</button>
+              <button className="btn-white watch-upload-btn" onClick={() => setAdminView("watch-upload")}>▶ Watch &amp; Learn Upload</button>
             </div>
           )}
           {adminView === "classes" && (
@@ -1097,6 +1161,43 @@ export default function App() {
                 </div>
               ))}
               <button className="btn-grey gap-v" onClick={() => setAdminView("classes")}>Back to Classes</button>
+            </div>
+          )}
+          {adminView === "watch-upload" && (
+            <div>
+              <h3 style={{ marginBottom: 4, color: "var(--main-text)" }}>Watch &amp; Learn Upload</h3>
+              <p style={{ fontSize: 13, color: "var(--grey)", marginBottom: 16 }}>Upload videos (3 min – 10 hrs) or paste a YouTube link.</p>
+
+              {/* Source tab */}
+              <div className="wl-tabs">
+                <button className={`wl-tab${watchUploadTab === "youtube" ? " active" : ""}`} onClick={() => setWatchUploadTab("youtube")}>▶ YouTube Link</button>
+                <button className={`wl-tab${watchUploadTab === "local" ? " active" : ""}`} onClick={() => setWatchUploadTab("local")}>📁 Local Video</button>
+              </div>
+
+              <input type="text" placeholder="Video Title *" value={watchTitle} onChange={e => setWatchTitle(e.target.value)} style={{ marginBottom: 10 }} />
+
+              {watchUploadTab === "youtube" ? (
+                <input type="url" placeholder="Paste YouTube link here…" value={watchYtUrl} onChange={e => setWatchYtUrl(e.target.value)} style={{ marginBottom: 10 }} />
+              ) : (
+                <div style={{ marginBottom: 10 }}>
+                  <input type="file" accept="video/*" onChange={e => setWatchLocalFile(e.target.files?.[0] || null)} />
+                  {watchLocalFile && <p style={{ fontSize: 12, color: "var(--grey)", marginTop: 4 }}>Selected: {watchLocalFile.name}</p>}
+                </div>
+              )}
+
+              <button className="btn-green gap-v-sm" onClick={uploadVideo}>Upload Video</button>
+
+              {/* Existing videos list */}
+              <div style={{ marginTop: 20 }}>
+                <h4 style={{ color: "var(--main-text)", marginBottom: 10 }}>Uploaded Videos ({videos.length})</h4>
+                {videos.length === 0 && <p style={{ color: "var(--grey)", fontSize: 13 }}>No videos yet.</p>}
+                {videos.map(v => (
+                  <div key={v.id} className="upload-item">
+                    <span>{v.type === "youtube" ? "▶ " : "📁 "}{v.title}</span>
+                    <button className="del-btn" onClick={() => deleteVideo(v.id)}>Delete</button>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -1268,6 +1369,74 @@ export default function App() {
         </div>
         <button className="btn-blue" style={{ marginTop: 20 }} onClick={() => goTo(lessonReturnScreen)}>Back to Portal</button>
       </div></div>
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
+    </>
+  );
+
+  if (screen === "watch-and-learn") return (
+    <>
+      <div className="screen">
+        <h2 className="screen-title">Watch &amp; Learn</h2>
+        {videos.length === 0 ? (
+          <div className="wl-empty">
+            <div className="wl-empty-icon">▶</div>
+            <p>No videos uploaded yet.</p>
+            <p style={{ fontSize: 13 }}>Check back later — admin will add videos soon.</p>
+          </div>
+        ) : (
+          <div className="wl-grid">
+            {videos.map(v => (
+              <div key={v.id} className="wl-card" onClick={() => playVideo(v)}>
+                {v.type === "youtube" && v.youtubeId ? (
+                  <div className="wl-thumb" style={{ backgroundImage: `url(https://img.youtube.com/vi/${v.youtubeId}/mqdefault.jpg)` }}>
+                    <div className="wl-play-overlay">▶</div>
+                  </div>
+                ) : (
+                  <div className="wl-thumb wl-thumb-local">
+                    <div className="wl-play-overlay">📁</div>
+                  </div>
+                )}
+                <div className="wl-card-body">
+                  <p className="wl-card-title">{v.title}</p>
+                  <span className="wl-card-badge">{v.type === "youtube" ? "YouTube" : "Local"}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        <button className="btn-grey gap-v" onClick={() => goTo("portal-selection")}>Exit Portal</button>
+      </div>
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
+    </>
+  );
+
+  if (screen === "video-player" && activeVideo) return (
+    <>
+      <div className="screen">
+        <button className="sp-back-btn" style={{ marginBottom: 14 }} onClick={() => goTo("watch-and-learn")}>← Back to Videos</button>
+        <h3 className="sp-class-heading" style={{ fontSize: 17, marginBottom: 14 }}>{activeVideo.title}</h3>
+        {activeVideo.type === "youtube" && activeVideo.youtubeId ? (
+          <div className="wl-player-wrap">
+            <iframe
+              className="wl-youtube-frame"
+              src={`https://www.youtube.com/embed/${activeVideo.youtubeId}?autoplay=1&rel=0&modestbranding=1`}
+              title={activeVideo.title}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+            />
+          </div>
+        ) : activeVideo.objectUrl ? (
+          <div className="wl-player-wrap">
+            <video className="wl-local-video" src={activeVideo.objectUrl} controls autoPlay />
+          </div>
+        ) : (
+          <div className="wl-session-expired">
+            <p>⚠️ This local video is only available in the session it was uploaded.</p>
+            <p style={{ marginTop: 8, fontSize: 13 }}>Please ask the admin to re-upload it, or use a YouTube link for permanent access.</p>
+          </div>
+        )}
+        <button className="btn-grey gap-v" style={{ marginTop: 20 }} onClick={() => goTo("watch-and-learn")}>Back to Watch &amp; Learn</button>
+      </div>
       <ToastContainer toasts={toasts} onRemove={removeToast} />
     </>
   );

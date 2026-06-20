@@ -250,6 +250,62 @@ textarea { resize: vertical; min-height: 70px; }
 
 .reading-pane { background: var(--card-bg); color: var(--card-text); padding: 20px; border-radius: 15px; margin-top: 20px; border: 1px solid var(--reading-pane-border); text-align: left; }
 
+/* ---- WATCH & LEARN ---- */
+.wl-portal-card {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 22px 10px; font-weight: bold; font-size: 16px;
+  background: linear-gradient(135deg, #1e3a5f, #2563eb);
+  color: white; border-radius: 12px; cursor: pointer;
+  box-shadow: 0 4px 14px rgba(37,99,235,0.3); transition: opacity 0.2s;
+}
+.wl-portal-card:hover { opacity: 0.9; }
+.wl-play-icon { font-size: 20px; }
+.watch-upload-btn { color: var(--blue) !important; font-weight: 700; }
+
+/* Admin upload tabs */
+.wl-tabs { display: flex; gap: 0; margin-bottom: 14px; border-radius: 10px; overflow: hidden; border: 1.5px solid var(--input-border); }
+.wl-tab {
+  flex: 1; padding: 11px 8px; background: var(--card-bg); color: var(--main-text);
+  border: none; font-size: 14px; font-weight: 600; cursor: pointer; transition: 0.2s;
+}
+.wl-tab.active { background: var(--blue); color: white; }
+
+/* Watch & Learn grid */
+.wl-empty { text-align: center; padding: 50px 20px; color: var(--grey); }
+.wl-empty-icon { font-size: 52px; margin-bottom: 16px; opacity: 0.4; }
+.wl-grid { display: flex; flex-direction: column; gap: 14px; margin-bottom: 20px; }
+.wl-card {
+  background: var(--card-bg); border-radius: 14px;
+  overflow: hidden; box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+  cursor: pointer; transition: transform 0.15s, box-shadow 0.15s;
+}
+.wl-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.13); }
+.wl-thumb {
+  width: 100%; aspect-ratio: 16/9; background: #1a1d21 center/cover no-repeat;
+  position: relative; display: flex; align-items: center; justify-content: center;
+}
+.wl-thumb-local { background: linear-gradient(135deg, #1e3a5f, #2563eb); }
+.wl-play-overlay {
+  width: 52px; height: 52px; background: rgba(0,0,0,0.6);
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 20px; color: white; backdrop-filter: blur(2px);
+}
+.wl-card-body { padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.wl-card-title { font-weight: 700; font-size: 14px; color: var(--card-text); flex: 1; }
+.wl-card-badge {
+  font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 20px;
+  background: var(--blue); color: white; white-space: nowrap;
+}
+
+/* Video player */
+.wl-player-wrap { width: 100%; border-radius: 12px; overflow: hidden; background: #000; margin-bottom: 4px; }
+.wl-youtube-frame { width: 100%; aspect-ratio: 16/9; border: none; display: block; }
+.wl-local-video { width: 100%; aspect-ratio: 16/9; display: block; background: #000; }
+.wl-session-expired {
+  background: #fef3cd; border: 1px solid #f59e0b; border-radius: 12px;
+  padding: 20px; text-align: center; color: #92400e; font-size: 14px; margin-top: 10px;
+}
+
 /* ---- TOAST ---- */
 .toast-container { position: fixed; bottom: 20px; left: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
 .toast { background: var(--navy); color: white; padding: 12px 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-size: 14px; min-width: 200px; animation: slideIn 0.3s ease-out; pointer-events: auto; }
